@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Defiende Palestina</title>
+  <link rel="stylesheet" href="style.css?v=5">
+</head>
+<body>
+  <main id="app">
+    <div id="game-stage">
+
+      <!-- Fondos apilados para crossfade dinámico de la alcantarilla -->
+      <div id="bg-cerrada" class="bg" aria-hidden="true"></div>
+      <div id="bg-abierta" class="bg" aria-hidden="true"></div>
+
+      <!-- PANTALLA 1: Inicio -->
+      <section id="screen-home" class="screen active" aria-label="Inicio">
+        <img src="assets/titulo.png" id="titulo-img" alt="Defiende Palestina">
+        <div class="home-actions">
+          <button type="button" class="img-btn" id="btn-jugar" aria-label="Jugar">
+            <img src="interaccion/btn_jugar.png" alt="Jugar">
+          </button>
+          <button type="button" class="img-btn" id="btn-clasificaciones" aria-label="Clasificaciones">
+            <img src="interaccion/btn_clasificaciones.png" alt="Clasificaciones">
+          </button>
+        </div>
+      </section>
+
+      <!-- PANTALLA 2: Formulario de jugador -->
+      <section id="screen-form" class="screen" aria-label="Registro de jugador">
+        <form id="player-form" class="form-container" novalidate>
+          <div class="field-wrap">
+            <img src="interaccion/campo_nombre.png" class="field-bg" alt="Nombre en tabla">
+            <input type="text" id="input-nombre" name="nombre" placeholder="Tu nombre" maxlength="18" autocomplete="name" required>
+          </div>
+          <div class="field-wrap">
+            <img src="interaccion/campo_cedula.png" class="field-bg" alt="Cédula">
+            <input type="tel" id="input-cedula" name="cedula" placeholder="8 dígitos" maxlength="8" pattern="\d{8}" inputmode="numeric" required>
+          </div>
+          <p id="form-error" class="form-error" role="alert"></p>
+          <button type="submit" class="img-btn" id="btn-confirmar" aria-label="Confirmar">
+            <img src="interaccion/btn_confirmar.png" alt="Confirmar">
+          </button>
+          <button type="button" class="img-btn btn-small" id="btn-volver-form" aria-label="Volver">
+            <img src="interaccion/btn_volver.png" alt="Volver">
+          </button>
+        </form>
+      </section>
+
+      <!-- PANTALLA 2.5: Cuenta Regresiva (3, 2, 1) -->
+      <section id="screen-countdown" class="screen" aria-label="Cuenta regresiva">
+        <img id="countdown-img" src="assets/3-edit.png" alt="3">
+      </section>
+
+      <!-- PANTALLA 3: Juego Activo -->
+      <section id="screen-game" class="screen" aria-label="Juego">
+        <header id="hud">
+          <div id="timer-bar-wrap" aria-label="Tiempo restante y puntaje">
+            <div id="timer-bar"></div>
+            <div id="hud-overlay">
+              <span id="score-display">0 pts</span>
+              <span id="timer-text">60s</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- 7 slots de aparición mapeados sobre el escenario -->
+        <div id="slots-layer">
+          <div class="slot" id="slot-0" data-slot="0"></div>
+          <div class="slot" id="slot-1" data-slot="1"></div>
+          <div class="slot" id="slot-2" data-slot="2"></div>
+          <div class="slot" id="slot-3" data-slot="3"></div>
+          <div class="slot" id="slot-4" data-slot="4"></div>
+          <div class="slot" id="slot-5" data-slot="5"></div>
+          <div class="slot" id="slot-6" data-slot="6"></div>
+        </div>
+
+        <div id="feedback-layer" aria-hidden="true"></div>
+      </section>
+
+      <!-- PANTALLA 4: Game Over -->
+      <section id="screen-gameover" class="screen" aria-label="Fin del juego">
+        <div class="gameover-box">
+          <img src="assets/perdiste-edit.png" id="perdiste-img" alt="Perdiste">
+          <div id="final-score-card">
+            <span id="final-player-name"></span>
+            <strong id="final-score-display">0 puntos</strong>
+            <small id="gameover-reason"></small>
+          </div>
+          <button type="button" class="img-btn" id="btn-volver-a-jugar" aria-label="Volver a jugar">
+            <img src="interaccion/btn_volver_a_jugar.png" alt="Volver a jugar">
+          </button>
+          <button type="button" class="img-btn" id="btn-volver-gameover" aria-label="Volver al inicio">
+            <img src="interaccion/btn_volver.png" alt="Volver">
+          </button>
+        </div>
+      </section>
+
+      <!-- PANTALLA 5: Clasificaciones -->
+      <section id="screen-scores" class="screen" aria-label="Clasificaciones">
+        <div class="scores-board-wrap">
+          <img src="assets/tabla.png" id="tabla-bg" alt="Tabla de clasificaciones">
+          <div id="scores-list" role="table" aria-label="Mejores puntajes"></div>
+        </div>
+        <button type="button" class="img-btn" id="btn-volver-scores" aria-label="Volver">
+          <img src="interaccion/btn_volver.png" alt="Volver">
+        </button>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="game.js?v=5"></script>
+</body>
+</html>
