@@ -2,27 +2,27 @@
   'use strict';
 
   const GAME_DURATION = 60;
-  const MAX_ON_SCREEN = 2;
+  const MAX_ON_SCREEN = 3;
   const STORAGE_KEY = 'palestina_scores_v1';
   const PLAYERS_STORAGE_KEY = 'palestina_players_v1';
   const FIREBASE_DB_URL = 'https://salva-palestina-default-rtdb.firebaseio.com';
 
   const CHARACTERS = [
-    { type: 'enemigo', file: 'enemigo.png', weight: 55, points: 10 },
-    { type: 'otro_enemigo', file: 'otro_enemigo.png', weight: 15, points: 50 },
+    { type: 'enemigo', file: 'enemigo.png', weight: 45, points: 10 },
+    { type: 'otro_enemigo', file: 'otro_enemigo.png', weight: 20, points: 50 },
     { type: 'hombre', file: 'hombre.png', weight: 20, points: -10 },
-    { type: 'mujer', file: 'mujer.png', weight: 10, points: 'GAME_OVER' },
+    { type: 'mujer', file: 'mujer.png', weight: 15, points: 'GAME_OVER' },
   ];
 
   // Slots 0-2 (izquierda): espejo horizontal; 3-5 (derecha): normal; 6 (alcantarilla): 90deg
   const SLOTS = [
-    { id: 0, transform: 'scaleX(-1)', isManhole: false },
-    { id: 1, transform: 'scaleX(-1)', isManhole: false },
-    { id: 2, transform: 'scaleX(-1)', isManhole: false },
-    { id: 3, transform: 'scaleX(1)', isManhole: false },
-    { id: 4, transform: 'scaleX(1)', isManhole: false },
-    { id: 5, transform: 'scaleX(1)', isManhole: false },
-    { id: 6, transform: 'rotate(90deg)', isManhole: true },
+    { id: 0, transform: 'scaleX(-1)', isManhole: false, side: 'left' },
+    { id: 1, transform: 'scaleX(-1)', isManhole: false, side: 'left' },
+    { id: 2, transform: 'scaleX(-1)', isManhole: false, side: 'left' },
+    { id: 3, transform: 'scaleX(1)', isManhole: false, side: 'right' },
+    { id: 4, transform: 'scaleX(1)', isManhole: false, side: 'right' },
+    { id: 5, transform: 'scaleX(1)', isManhole: false, side: 'right' },
+    { id: 6, transform: 'rotate(90deg)', isManhole: true, side: 'center' },
   ];
 
   const state = {
@@ -298,16 +298,8 @@
     }, delay);
   }
 
-  function spawnCharacter() {
-    if (!state.running) return;
-    if (state.activeSlots.size >= MAX_ON_SCREEN) return;
-
-    const freeSlots = SLOTS.filter((s) => !state.activeSlots.has(s.id));
-    if (freeSlots.length === 0) return;
-
-    const slot = freeSlots[Math.floor(Math.random() * freeSlots.length)];
+  function spawnOneInSlot(slot, visibleMs) {
     const charDef = weightedRandomCharacter();
-    const visibleMs = 1100 + Math.random() * 1200;
 
     // Reservar slot de inmediato para evitar colisiones si la alcantarilla espera 150ms
     const entry = { charDef, autoRemoveId: null, leaving: false };
@@ -346,6 +338,63 @@
     } else {
       mountCharacter();
     }
+  }
+
+  function pickRandom(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function pickSlotsForPair(freeSlots) {
+    const leftFree = freeSlots.filter((s) => s.side === 'left');
+    const rightFree = freeSlots.filter((s) => s.side === 'right');
+    const manholeFree = freeSlots.find((s) => s.isManhole);
+    const sameSide = Math.random() < 0.45;
+
+    if (sameSide) {
+      const candidates = [];
+      if (leftFree.length >= 2) candidates.push(leftFree);
+      if (rightFree.length >= 2) candidates.push(rightFree);
+      if (candidates.length > 0) {
+        const pool = [...pickRandom(candidates)];
+        const first = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+        const second = pickRandom(pool);
+        return [first, second];
+      }
+    } else {
+      // En el 55% restante: incluir la alcantarilla (~35% de las veces si está libre) + un lado, o izq + der
+      const wallFree = [...leftFree, ...rightFree];
+      if (manholeFree && wallFree.length >= 1 && Math.random() < 0.35) {
+        return [manholeFree, pickRandom(wallFree)];
+      }
+      if (leftFree.length >= 1 && rightFree.length >= 1) {
+        return [pickRandom(leftFree), pickRandom(rightFree)];
+      }
+    }
+
+    // Respaldo si no hay suficientes slots libres del lado elegido
+    const pool = [...freeSlots];
+    const first = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+    const second = pickRandom(pool);
+    return [first, second];
+  }
+
+  function spawnCharacter() {
+    if (!state.running) return;
+    if (state.activeSlots.size >= MAX_ON_SCREEN) return;
+
+    const freeSlots = SLOTS.filter((s) => !state.activeSlots.has(s.id));
+    if (freeSlots.length === 0) return;
+
+    // 25% más rápido que antes (antes: 1100–2300ms, ahora: 825–1725ms)
+    const visibleMs = (1100 + Math.random() * 1200) * 0.75;
+
+    // 50% de probabilidad de que salgan 2 exactamente al mismo tiempo (hasta un máximo de 3 en pantalla)
+    const availableCapacity = MAX_ON_SCREEN - state.activeSlots.size;
+    const wantPair = Math.random() < 0.5;
+    const count = Math.min(wantPair ? 2 : 1, availableCapacity, freeSlots.length);
+
+    const chosenSlots = count === 2 ? pickSlotsForPair(freeSlots) : [pickRandom(freeSlots)];
+    chosenSlots.forEach((slot) => spawnOneInSlot(slot, visibleMs));
   }
 
   function removeCharacter(slotId) {
@@ -590,8 +639,50 @@
     window.visualViewport.addEventListener('resize', fitStage);
   }
 
+  // Música de fondo (en todas las pantallas; solo se silencia/activa desde el inicio)
+  const bgMusic = document.getElementById('bg-music');
+  const btnAudio = document.getElementById('btn-audio');
+  const btnAudioImg = document.getElementById('btn-audio-img');
+  let musicMuted = false;
+
+  function tryStartMusic() {
+    if (musicMuted || !bgMusic) return;
+    const p = bgMusic.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => {
+        // Los navegadores móviles bloquean autoplay hasta el primer toque
+      });
+    }
+  }
+
+  function unlockMusicOnFirstInteraction() {
+    if (!musicMuted && bgMusic && bgMusic.paused) {
+      tryStartMusic();
+    }
+    document.removeEventListener('pointerdown', unlockMusicOnFirstInteraction);
+    document.removeEventListener('keydown', unlockMusicOnFirstInteraction);
+  }
+
+  document.addEventListener('pointerdown', unlockMusicOnFirstInteraction, { passive: true });
+  document.addEventListener('keydown', unlockMusicOnFirstInteraction, { passive: true });
+
+  btnAudio.addEventListener('click', (e) => {
+    e.stopPropagation();
+    musicMuted = !musicMuted;
+    if (musicMuted) {
+      bgMusic.pause();
+      btnAudioImg.src = 'interaccion/btn_silencio.png';
+      btnAudio.setAttribute('aria-label', 'Activar música');
+    } else {
+      btnAudioImg.src = 'interaccion/btn_volumen.png';
+      btnAudio.setAttribute('aria-label', 'Silenciar música');
+      tryStartMusic();
+    }
+  });
+
   // Inicialización
   fitStage();
   preloadAssets();
   loadSeedScores();
+  tryStartMusic();
 })();

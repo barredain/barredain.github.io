@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Defiende Palestina</title>
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
   <main id="app">
+    <audio id="bg-music" src="assets/musica.mp3" loop preload="auto"></audio>
     <div id="game-stage">
 
       <!-- Fondos apilados para crossfade dinámico de la alcantarilla -->
@@ -16,6 +17,9 @@
 
       <!-- PANTALLA 1: Inicio -->
       <section id="screen-home" class="screen active" aria-label="Inicio">
+        <button type="button" class="img-btn" id="btn-audio" aria-label="Silenciar música">
+          <img id="btn-audio-img" src="interaccion/btn_volumen.png" alt="Volumen">
+        </button>
         <img src="assets/titulo.png" id="titulo-img" alt="Defiende Palestina">
         <div class="home-actions">
           <button type="button" class="img-btn" id="btn-jugar" aria-label="Jugar">
@@ -111,6 +115,6 @@
     </div>
   </main>
 
-  <script src="game.js?v=7"></script>
+  <script src="game.js?v=13"></script>
 </body>
 </html>
