@@ -104,6 +104,21 @@
     }
   }
 
+  function deduplicateBestByCedula(list) {
+    const byCedula = new Map();
+    for (const item of list) {
+      if (!item) continue;
+      const key = item.cedula ? String(item.cedula) : `${item.nombre}-${item.fecha || ''}`;
+      const prev = byCedula.get(key);
+      if (!prev || Number(item.puntos) > Number(prev.puntos)) {
+        byCedula.set(key, item);
+      }
+    }
+    const result = Array.from(byCedula.values());
+    result.sort((a, b) => Number(b.puntos) - Number(a.puntos));
+    return result;
+  }
+
   function getLocalScores() {
     let local = [];
     try {
@@ -112,9 +127,7 @@
     } catch {
       local = [];
     }
-    const merged = [...state.seedScores, ...local];
-    merged.sort((a, b) => Number(b.puntos) - Number(a.puntos));
-    return merged.slice(0, 10);
+    return deduplicateBestByCedula([...state.seedScores, ...local]).slice(0, 10);
   }
 
   async function getScores() {
@@ -123,8 +136,7 @@
       if (res.ok) {
         const data = await res.json();
         const list = data ? Object.values(data) : [];
-        list.sort((a, b) => Number(b.puntos) - Number(a.puntos));
-        return list.slice(0, 10);
+        return deduplicateBestByCedula(list).slice(0, 10);
       }
     } catch {
       // Si falla la red, usar respaldo local
@@ -140,7 +152,7 @@
       fecha: new Date().toISOString(),
     };
 
-    // Respaldo local inmediato
+    // Respaldo local: mantener solo el mejor puntaje por cédula
     let local = [];
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -149,21 +161,30 @@
       local = [];
     }
     local.push(entry);
-    local.sort((a, b) => Number(b.puntos) - Number(a.puntos));
-    local = local.slice(0, 50);
+    local = deduplicateBestByCedula(local).slice(0, 50);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(local));
     } catch {
       // Ignorar si el almacenamiento está lleno o bloqueado
     }
 
-    // Guardar en Firebase Realtime Database para todos los dispositivos
+    // Guardar en Firebase bajo /scores/<cedula> solo si supera su mejor puntaje anterior
     try {
-      await fetch(`${FIREBASE_DB_URL}/scores.json`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entry),
-      });
+      const checkRes = await fetch(`${FIREBASE_DB_URL}/scores/${cedula}.json`, { cache: 'no-store' });
+      let currentBest = -1;
+      if (checkRes.ok) {
+        const current = await checkRes.json();
+        if (current && typeof current.puntos === 'number') {
+          currentBest = current.puntos;
+        }
+      }
+      if (puntos > currentBest) {
+        await fetch(`${FIREBASE_DB_URL}/scores/${cedula}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(entry),
+        });
+      }
     } catch {
       // Si no hay conexión, al menos quedó en localStorage
     }
@@ -470,10 +491,8 @@
   function setLocalPlayer(cedula, nombre) {
     try {
       const map = getLocalPlayers();
-      if (!map[cedula]) {
-        map[cedula] = nombre;
-        localStorage.setItem(PLAYERS_STORAGE_KEY, JSON.stringify(map));
-      }
+      map[cedula] = nombre;
+      localStorage.setItem(PLAYERS_STORAGE_KEY, JSON.stringify(map));
     } catch {
       // Ignorar si localStorage falla
     }
@@ -494,14 +513,11 @@
         }
       }
     } catch {
+      // Solo usar respaldo local si no hubo conexión con Firebase
       if (localMap[cedula]) return localMap[cedula];
     }
 
-    if (localMap[cedula]) {
-      return localMap[cedula];
-    }
-
-    // Primera vez con esta cédula: registrarla en Firebase y localStorage
+    // No existe en Firebase (primera vez o fue borrado de Firebase): registrarlo ahora
     setLocalPlayer(cedula, enteredName);
     try {
       await fetch(`${FIREBASE_DB_URL}/players/${cedula}.json`, {
